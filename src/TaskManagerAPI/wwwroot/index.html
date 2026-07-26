@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow | منصة إدارة المهام النخبوية</title>
+    <meta name="description" content="واجهة مستخدم حديثة ومتكاملة للتحكم بالمهام والمستخدمين عبر Task Manager API">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <!-- Background Decorative Elements -->
+    <div class="bg-blob blob-1"></div>
+    <div class="bg-blob blob-2"></div>
+    <div class="bg-blob blob-3"></div>
+
+    <div class="app-container">
+
+        <!-- Sidebar / Navigation Header -->
+        <header class="navbar">
+            <div class="nav-brand">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>Task<span>Flow</span></h1>
+                    <span class="badge-version">API v1.0</span>
+                </div>
+            </div>
+
+            <!-- Global Search & View Tabs -->
+            <div class="nav-controls">
+                <button id="tabTasksBtn" class="nav-tab active">
+                    <i class="fa-solid fa-list-check"></i> المهام
+                </button>
+                <button id="tabUsersBtn" class="nav-tab admin-only hidden">
+                    <i class="fa-solid fa-users-gear"></i> إدارة المستخدمين
+                </button>
+                <a href="/swagger" target="_blank" class="nav-tab swagger-link">
+                    <i class="fa-solid fa-code"></i> Swagger API
+                </a>
+            </div>
+
+            <!-- User Profile / Auth Button -->
+            <div class="nav-user">
+                <div id="userGuestState">
+                    <button class="btn btn-primary btn-glow" onclick="openAuthModal('login')">
+                        <i class="fa-solid fa-right-to-bracket"></i> تسجيل الدخول
+                    </button>
+                </div>
+                <div id="userLoggedInState" class="user-profile-box hidden">
+                    <div class="avatar" id="userAvatar">A</div>
+                    <div class="user-info">
+                        <span class="user-name" id="userName">اسم المستخدم</span>
+                        <span class="user-role-badge" id="userRoleBadge">User</span>
+                    </div>
+                    <button class="btn-icon text-danger" title="تسجيل الخروج" onclick="logout()">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Section -->
+        <main class="main-content">
+
+            <!-- Stats Overview Cards -->
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon icon-purple">
+                        <i class="fa-solid fa-tasks"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>إجمالي المهام</h3>
+                        <div class="stat-value" id="statTotal">0</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon icon-warning">
+                        <i class="fa-solid fa-hourglass-half"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>قيد الانتظار</h3>
+                        <div class="stat-value" id="statPending">0</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon icon-blue">
+                        <i class="fa-solid fa-spinner"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>قيد التنفيذ</h3>
+                        <div class="stat-value" id="statInProgress">0</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon icon-success">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>المكتملة</h3>
+                        <div class="stat-value" id="statCompleted">0</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 1: Tasks View -->
+            <section id="tasksView" class="view-section active">
+                
+                <!-- Action Controls Bar -->
+                <div class="action-bar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="searchInput" placeholder="ابحث في المهام بالعنوان أو الوصف..." oninput="debounceSearch()">
+                    </div>
+
+                    <div class="filter-tabs">
+                        <button class="filter-btn active" onclick="setFilterStatus('')">الكل</button>
+                        <button class="filter-btn" onclick="setFilterStatus('Pending')">قيد الانتظار</button>
+                        <button class="filter-btn" onclick="setFilterStatus('InProgress')">قيد التنفيذ</button>
+                        <button class="filter-btn" onclick="setFilterStatus('Completed')">مكتملة</button>
+                        <button class="filter-btn" onclick="setFilterStatus('Cancelled')">ملغاة</button>
+                    </div>
+
+                    <div class="flex-spacer"></div>
+
+                    <button class="btn btn-primary btn-glow" onclick="openTaskModal()">
+                        <i class="fa-solid fa-plus"></i> مهمة جديدة
+                    </button>
+                </div>
+
+                <!-- Tasks Kanban / Grid Container -->
+                <div class="tasks-grid" id="tasksGrid">
+                    <!-- Dynamic task cards will be rendered here -->
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state hidden" id="emptyTasksState">
+                    <div class="empty-icon">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                    </div>
+                    <h3>لا توجد مهام حالياً</h3>
+                    <p>قم بإنشاء مهمة جديدة للبدء في تنظيم أعمالك بكل سهولة.</p>
+                    <button class="btn btn-primary" onclick="openTaskModal()">
+                        <i class="fa-solid fa-plus"></i> إضافة مهمة
+                    </button>
+                </div>
+            </section>
+
+            <!-- VIEW 2: Users Management View (Admin Only) -->
+            <section id="usersView" class="view-section">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-users-gear"></i> لوحة التحكم بالمستخدمين (Admin Only)</h2>
+                    <p>إدارة المستخدمين وصلاحيات الحسابات عبر REST API</p>
+                </div>
+
+                <div class="table-card">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>#ID</th>
+                                <th>الاسم</th>
+                                <th>البريد الإلكتروني</th>
+                                <th>الدور (Role)</th>
+                                <th>تاريخ التسجيل</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <!-- Dynamic user rows will be rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODAL 1: Authentication Modal (Login / Register) -->
+    <div class="modal-overlay hidden" id="authModal">
+        <div class="modal-card">
+            <button class="modal-close" onclick="closeModal('authModal')">&times;</button>
+
+            <div class="modal-tabs">
+                <button id="authLoginTab" class="modal-tab active" onclick="switchAuthTab('login')">تسجيل الدخول</button>
+                <button id="authRegisterTab" class="modal-tab" onclick="switchAuthTab('register')">إنشاء حساب جديد</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" onsubmit="handleLogin(event)" class="modal-form">
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-envelope"></i>
+                        <input type="email" id="loginEmail" required placeholder="name@example.com">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="loginPassword" required placeholder="••••••••">
+                    </div>
+                </div>
+
+                <!-- Quick Admin Preset Button for easy testing -->
+                <div class="preset-box">
+                    <span>💡 لتجربة الحساب الإداري (Admin):</span>
+                    <button type="button" class="btn-text" onclick="fillAdminCredentials()">تعبئة بيانات الأدمن تلقائياً</button>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full btn-glow">
+                    <i class="fa-solid fa-right-to-bracket"></i> دخول
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="registerForm" onsubmit="handleRegister(event)" class="modal-form hidden">
+                <div class="form-group">
+                    <label>الاسم الكامل</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="regName" required placeholder="أحمد علي">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-envelope"></i>
+                        <input type="email" id="regEmail" required placeholder="name@example.com">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>كلمة المرور (8 أحرف على الأقل)</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="regPassword" required minlength="8" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-full btn-glow">
+                    <i class="fa-solid fa-user-plus"></i> إنشاء الحساب
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Create / Edit Task Modal -->
+    <div class="modal-overlay hidden" id="taskModal">
+        <div class="modal-card">
+            <button class="modal-close" onclick="closeModal('taskModal')">&times;</button>
+            <h2 class="modal-title" id="taskModalTitle"><i class="fa-solid fa-plus-circle"></i> إضافة مهمة جديدة</h2>
+
+            <form id="taskForm" onsubmit="handleSaveTask(event)" class="modal-form">
+                <input type="hidden" id="taskId">
+
+                <div class="form-group">
+                    <label>عنوان المهمة *</label>
+                    <input type="text" id="taskTitle" required placeholder="أدخل عنوان المهمة...">
+                </div>
+
+                <div class="form-group">
+                    <label>الوصف التفصيلي</label>
+                    <textarea id="taskDescription" rows="3" placeholder="أدخل وصف المهمة..."></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>حالة المهمة</label>
+                        <select id="taskStatus">
+                            <option value="Pending">Pending (قيد الانتظار)</option>
+                            <option value="InProgress">InProgress (قيد التنفيذ)</option>
+                            <option value="Completed">Completed (مكتملة)</option>
+                            <option value="Cancelled">Cancelled (ملغاة)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>تاريخ الاستحقاق (Due Date)</label>
+                        <input type="date" id="taskDueDate">
+                    </div>
+                </div>
+
+                <!-- Admin Only User Assignment -->
+                <div class="form-group admin-only hidden" id="adminUserSelectGroup">
+                    <label><i class="fa-solid fa-user-gear"></i> تعيين المهمة لمستخدم معين (Admin Only)</label>
+                    <select id="taskAssignUserId">
+                        <option value="">تلقائي (للحساب الحالي)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full btn-glow">
+                    <i class="fa-solid fa-floppy-disk"></i> حفظ المهمة
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Custom JS -->
+    <script src="js/app.js"></script>
+</body>
+</html>
